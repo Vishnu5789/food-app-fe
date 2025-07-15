@@ -46,6 +46,7 @@ export interface UpdateFoodItemRequest {
   description?: string;
   price?: number;
   category?: string;
+  image?: string;
   imageUrl?: string;
   available?: boolean;
 }
@@ -162,6 +163,7 @@ export interface AppState {
   token: string | null;
   isAuthenticated: boolean;
   portalType: 'user' | 'admin';
+  isLoading: boolean;
 }
 
 // Form Types
@@ -186,3 +188,37 @@ export interface UpdatePasswordForm {
   password: string;
   confirmPassword: string;
 } 
+
+export interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpayResponse) => void;
+  prefill: {
+    name?: string;
+    email?: string;
+    contact?: string;
+  };
+  theme: {
+    color: string;
+  };
+}
+
+export interface RazorpayResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+export interface PaymentOrderResponse {
+  razorpayOrderId: string;
+  amount: number;
+  currency: string;
+  userId: number;
+  addressId: number;
+  // cartItems removed to avoid circular reference issues
+}
+ 

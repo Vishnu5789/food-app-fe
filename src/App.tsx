@@ -34,14 +34,35 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: 'USER
   children, 
   requiredRole 
 }) => {
-  const { isAuthenticated, user, portalType } = useAuth();
+  const { isAuthenticated, user, portalType, isLoading } = useAuth();
+
+  console.log('ProtectedRoute:', { isAuthenticated, userRole: user?.role, portalType, isLoading, requiredRole });
+
+  // Show loading spinner while authentication is being checked
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-skorange"></div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    // Redirect to appropriate login page based on portal type
+    if (portalType === 'admin') {
+      return <Navigate to="/admin/login" replace />;
+    } else {
+      return <Navigate to="/login" replace />;
+    }
   }
 
   if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/" replace />;
+    // Redirect based on portal type
+    if (portalType === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return <Layout>{children}</Layout>;
@@ -49,7 +70,16 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: 'USER
 
 // Public Route Component
 const PublicRoute: React.FC<{ children: React.ReactNode; portalType?: 'user' | 'admin' }> = ({ children, portalType }) => {
-  const { isAuthenticated, portalType: authPortalType } = useAuth();
+  const { isAuthenticated, portalType: authPortalType, isLoading } = useAuth();
+
+  // Show loading spinner while authentication is being checked
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-skorange"></div>
+      </div>
+    );
+  }
 
   if (isAuthenticated) {
     // Redirect based on portal type
@@ -63,9 +93,53 @@ const PublicRoute: React.FC<{ children: React.ReactNode; portalType?: 'user' | '
   return <>{children}</>;
 };
 
+function RootRedirect() {
+  const { isAuthenticated, portalType, isLoading } = useAuth();
+
+  console.log('RootRedirect:', { isAuthenticated, portalType, isLoading });
+
+  // Show loading spinner while authentication is being checked
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-skorange"></div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    if (portalType === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+
+  return <Navigate to="/login" replace />;
+}
+
+function FallbackRedirect() {
+  const { portalType, isLoading } = useAuth();
+  
+  // Show loading spinner while authentication is being checked
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-skorange"></div>
+      </div>
+    );
+  }
+  
+  if (portalType === 'admin') {
+    return <Navigate to="/admin/login" replace />;
+  } else {
+    return <Navigate to="/login" replace />;
+  }
+}
+
 function AppRoutes() {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster
         position="top-center"
         toastOptions={{
@@ -121,12 +195,10 @@ function AppRoutes() {
             </PublicRoute>
           } />
 
+          {/* Smart Root Route */}
+          <Route path="/" element={<RootRedirect />} />
+
           {/* User Routes */}
-          <Route path="/" element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          } />
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <DashboardPage />
@@ -191,7 +263,7 @@ function AppRoutes() {
           } />
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<FallbackRedirect />} />
         </Routes>
       </div>
     </Router>
