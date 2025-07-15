@@ -278,4 +278,45 @@ export const paymentAPI = {
   },
 };
 
+// Admin User Management API
+export const adminUserAPI = {
+  getAllUsers: async () => {
+    const response = await api.get<ApiResponse<User[]>>('/api/admin/users');
+    return response.data;
+  },
+
+  updateUserRole: async (userId: number, role: string) => {
+    const response = await api.put<ApiResponse<string>>(`/api/admin/users/${userId}/role?role=${role}`);
+    return response.data;
+  },
+
+  deleteUser: async (userId: number) => {
+    const response = await api.delete<ApiResponse<string>>(`/api/admin/users/${userId}`);
+    return response.data;
+  },
+
+  getUserStats: async () => {
+    const response = await api.get<ApiResponse<{ totalUsers: number; adminUsers: number; regularUsers: number; adminPercentage: number; userPercentage: number }>>('/api/admin/users/stats');
+    return response.data;
+  },
+};
+
+// Admin Order Management API
+export const adminOrderAPI = {
+  getAllOrders: async () => {
+    const response = await api.get<ApiResponse<Order[]>>('/api/admin/orders');
+    return response.data;
+  },
+
+  getOrderById: async (orderId: number) => {
+    const response = await api.get<ApiResponse<Order>>(`/api/admin/orders/${orderId}`);
+    return response.data;
+  },
+
+  updateOrderStatus: async (orderId: number, status: string) => {
+    const response = await api.put<ApiResponse<string>>(`/api/admin/orders/${orderId}/status?status=${status}`);
+    return response.data;
+  },
+};
+
 export default api; 

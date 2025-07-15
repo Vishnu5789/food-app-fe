@@ -50,8 +50,11 @@ const Sidebar: React.FC = () => {
   const handleLogout = async () => {
     try {
       await logout();
+      // The logout function in AuthContext will handle the API call, 
+      // clearing local storage, and navigation automatically
     } catch (error) {
       console.error('Logout failed:', error);
+      // Error handling is already done in the AuthContext logout function
     }
   };
 

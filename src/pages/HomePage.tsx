@@ -12,12 +12,12 @@ const HomePage = () => {
 
   const handleLogout = async () => {
     try {
-      await authAPI.logout();
-      logout();
-        toast.success('Logged out successfully!');
-        navigate('/login');
-    } catch (err) {
-      toast.error('Logout failed.');
+      await logout();
+      // The logout function in AuthContext will handle the API call, 
+      // clearing local storage, navigation, and toast messages automatically
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Error handling is already done in the AuthContext logout function
     }
   };
 
