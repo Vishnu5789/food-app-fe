@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
-import { CartItem, Address } from '../types';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, CreditCard } from 'lucide-react';
+import { CartItem, Address, RazorpayOptions, RazorpayResponse, PaymentOrderResponse } from '../types';
 import { cartAPI, addressAPI, orderAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { toast } from 'react-hot-toast';
+
+// Declare Razorpay as a global variable
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 const CartPage: React.FC = () => {
   const { user } = useAuth();
@@ -119,13 +126,68 @@ const CartPage: React.FC = () => {
     }
 
     try {
-      await orderAPI.checkoutCart(user!.id, selectedAddress.id);
-      toast.success('Order placed successfully!');
-      setShowCheckoutModal(false);
-      await loadCart();
+      setLoading(true);
+      
+      // Create payment order
+      const response = await orderAPI.checkoutCartWithPayment(user!.id, selectedAddress.id);
+      
+      if (response.status === 'SUCCESS' && response.data) {
+        const paymentData: PaymentOrderResponse = JSON.parse(response.data);
+        
+        // Initialize Razorpay payment
+        const options: RazorpayOptions = {
+          key: 'rzp_test_JR5a3U8aOxNQQq', // Your Razorpay test key
+          amount: paymentData.amount * 100, // Convert to paise
+          currency: paymentData.currency,
+          name: 'Food App',
+          description: 'Food order payment',
+          order_id: paymentData.razorpayOrderId,
+          handler: async (response: RazorpayResponse) => {
+            try {
+              // Verify payment with backend
+              const confirmResponse = await orderAPI.confirmPayment(
+                user!.id,
+                response.razorpay_payment_id,
+                response.razorpay_order_id,
+                response.razorpay_signature
+              );
+              
+              if (confirmResponse.status === 'SUCCESS') {
+                toast.success('Payment successful! Order placed successfully!');
+                setShowCheckoutModal(false);
+                await loadCart();
+              } else {
+                toast.error('Payment verification failed');
+              }
+            } catch (error) {
+              console.error('Error confirming payment:', error);
+              toast.error('Payment verification failed');
+            }
+          },
+          prefill: {
+            name: user?.username,
+            email: user?.email,
+          },
+          theme: {
+            color: '#f97316', // Orange color matching the app theme
+          },
+        };
+
+        const razorpay = new window.Razorpay(options);
+        razorpay.open();
+        
+        razorpay.on('payment.failed', (response: any) => {
+          toast.error('Payment failed: ' + response.error.description);
+        });
+        
+      } else {
+        toast.error('Failed to create payment order');
+      }
     } catch (error) {
-      console.error('Error placing order:', error);
-      toast.error('Failed to place order');
+      console.error('Error initiating payment:', error);
+      toast.error('Failed to initiate payment');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -294,7 +356,7 @@ const CartPage: React.FC = () => {
                   onClick={() => setShowAddressModal(true)}
                   icon={<ArrowRight size={20} />}
                 >
-                  Proceed to Checkout
+                  Proceed to Payment
                 </Button>
               </div>
             </Card>
@@ -382,7 +444,7 @@ const CartPage: React.FC = () => {
       <Modal
         isOpen={showCheckoutModal}
         onClose={() => setShowCheckoutModal(false)}
-        title="Confirm Order"
+        title="Confirm Payment"
         size="md"
       >
         <div className="space-y-4">
@@ -413,8 +475,10 @@ const CartPage: React.FC = () => {
               variant="primary"
               onClick={handleCheckout}
               className="flex-1"
+              icon={<CreditCard size={20} />}
+              disabled={loading}
             >
-              Place Order
+              {loading ? 'Processing...' : 'Pay Now'}
             </Button>
           </div>
         </div>
