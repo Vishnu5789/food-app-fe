@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, ShoppingCart, Plus, Minus } from 'lucide-react';
+import { Search, Filter, ShoppingCart, Plus, Minus, Utensils } from 'lucide-react';
 import { FoodItem } from '../types';
 import { foodAPI, cartAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import { CATEGORY_OPTIONS, getCategoryLabel, getCategoryColors } from '../constants/categories';
 import { toast } from 'react-hot-toast';
 
 const MenuPage: React.FC = () => {
@@ -16,8 +18,6 @@ const MenuPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-
-  const categories = ['all', 'veg', 'non-veg', 'dessert', 'beverage'];
 
   useEffect(() => {
     loadFoods();
@@ -59,33 +59,33 @@ const MenuPage: React.FC = () => {
   };
 
   const filterFoods = () => {
-    let filtered = foods.filter(food => food.available && !food.isDeleted);
-
+    let filtered = foods.filter(food => !food.isDeleted && food.available);
+    
     if (searchTerm) {
       filtered = filtered.filter(food =>
         food.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         food.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
+    
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(food =>
         food.category.toLowerCase() === selectedCategory.toLowerCase()
       );
     }
-
+    
     setFilteredFoods(filtered);
   };
 
-  const addToCart = async (foodId: number) => {
+  const addToCart = async (foodItemId: number) => {
     if (!user) {
       toast.error('Please login to add items to cart');
       return;
     }
 
     try {
-      await cartAPI.addToCart(user.id, foodId, 1);
-      toast.success('Added to cart!');
+      await cartAPI.addToCart(user.id, foodItemId, 1);
+      toast.success('Item added to cart successfully');
     } catch (error) {
       console.error('Error adding to cart:', error);
       toast.error('Failed to add item to cart');
@@ -137,17 +137,13 @@ const MenuPage: React.FC = () => {
           />
         </div>
         
-        <div className="flex gap-2">
-          {categories.map((category) => (
-            <Button
-              key={category}
-              variant={selectedCategory === category ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedCategory(category)}
-            >
-              {category.charAt(0).toUpperCase() + category.slice(1)}
-            </Button>
-          ))}
+        <div className="w-full md:w-64">
+          <Select
+            placeholder="Filter by category"
+            options={CATEGORY_OPTIONS}
+            value={selectedCategory}
+            onChange={setSelectedCategory}
+          />
         </div>
       </motion.div>
 
@@ -163,44 +159,54 @@ const MenuPage: React.FC = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.1 }}
+            className="h-full"
           >
-            <Card className="overflow-hidden">
-              {food.imageUrl && (
-                <div className="aspect-w-16 aspect-h-9 bg-gray-200">
+            <Card className="overflow-hidden h-full flex flex-col">
+              <div className="w-full h-48 bg-gray-100 relative overflow-hidden flex-shrink-0 group">
+                {food.imageUrl ? (
                   <img
                     src={food.imageUrl}
                     alt={food.name}
-                    className="w-full h-48 object-cover"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 ease-in-out group-hover:scale-110"
                   />
-                </div>
-              )}
-              
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">{food.name}</h3>
-                  <span className="px-2 py-1 bg-skgreen text-green-800 rounded-full text-xs font-medium capitalize">
-                    {food.category}
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center space-y-2 text-gray-400">
+                    <Utensils size={48} />
+                    <span className="text-sm font-medium">No Image</span>
+                  </div>
+                )}
+                
+                {/* Category Tag Overlay */}
+                <div className="absolute top-2 right-2">
+                  <span className={`px-3 py-1.5 rounded-full text-[10px] font-semibold whitespace-nowrap shadow-lg backdrop-blur-md bg-white/90 border-2 ${getCategoryColors(food.category).border} ${getCategoryColors(food.category).text}`}>
+                    {getCategoryLabel(food.category)}
                   </span>
                 </div>
+              </div>
+              
+              <div className="p-6 flex flex-col flex-grow">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">{food.name}</h3>
+                </div>
                 
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                <p className="text-gray-600 text-sm mb-4 line-clamp-2 flex-grow">
                   {food.description}
                 </p>
                 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-4 flex-shrink-0">
                   <span className="text-2xl font-bold text-skorange">
                     ${food.price}
                   </span>
-                  
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => addToCart(food.id)}
-                    icon={<Plus size={16} />}
-                  >
-                    Add
-                  </Button>
                 </div>
+                
+                <Button
+                  variant="primary"
+                  onClick={() => addToCart(food.id)}
+                  icon={<Plus size={16} />}
+                  className="w-full flex-shrink-0"
+                >
+                  Add to Cart
+                </Button>
               </div>
             </Card>
           </motion.div>
@@ -213,7 +219,7 @@ const MenuPage: React.FC = () => {
           animate={{ opacity: 1 }}
           className="text-center py-12"
         >
-          <p className="text-gray-500 text-lg">No items found matching your criteria.</p>
+          <p className="text-gray-500 text-lg">No dishes found matching your criteria.</p>
         </motion.div>
       )}
     </div>

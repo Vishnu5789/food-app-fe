@@ -48,7 +48,12 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('jwtToken');
-      window.location.href = '/login';
+      const portalType = localStorage.getItem('portalType');
+      if (portalType === 'admin') {
+        window.location.href = '/admin/login';
+      } else {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -99,6 +104,22 @@ export const authAPI = {
   },
 };
 
+// User Dashboard API
+export const userDashboardAPI = {
+  getDashboardStats: async (userId: number) => {
+    const response = await api.get<ApiResponse<{ cartItemsCount: number; addressesCount: number; ordersCount: number; totalSpent: number }>>(`/api/user/dashboard/stats?userId=${userId}`);
+    return response.data;
+  },
+
+  getRecentActivity: async (userId: number) => {
+    const response = await api.get<ApiResponse<{ recentOrders: any[]; recentCartItems: any[] }>>(`/api/user/dashboard/recent-activity?userId=${userId}`);
+    return response.data;
+  },
+};
+
+
+
+
 // Food Items API
 export const foodAPI = {
   getAllFoods: async () => {
@@ -125,7 +146,7 @@ export const foodAPI = {
       description: data.description,
       price: data.price,
       category: data.category,
-      imageUrl: data.imageUrl,
+      imageUrl: data.image || '',
       available: data.available
     });
     return response.data;
@@ -205,6 +226,42 @@ export const orderAPI = {
     return response.data;
   },
 
+  checkoutCartWithPayment: async (userId: number, addressId: number) => {
+    const response = await api.post<ApiResponse<any>>(
+      `/api/orders/checkout-with-payment?userId=${userId}&addressId=${addressId}`
+    );
+    return response.data;
+  },
+
+  confirmPayment: async (userId: number, paymentId: string, orderId: string, signature: string) => {
+    const response = await api.post<ApiResponse<string>>(
+      `/api/orders/confirm-payment?userId=${userId}&paymentId=${paymentId}&orderId=${orderId}&signature=${signature}`
+    );
+    return response.data;
+  },
+
+  // User Order APIs
+  getMyOrders: async (userId: number) => {
+    const response = await api.get<ApiResponse<Order[]>>(`/api/orders/my?userId=${userId}`);
+    return response.data;
+  },
+
+  getMyOrderById: async (orderId: number, userId: number) => {
+    const response = await api.get<ApiResponse<Order>>(`/api/orders/my/${orderId}?userId=${userId}`);
+    return response.data;
+  },
+
+  getMyRecentOrders: async (userId: number, limit: number = 5) => {
+    const response = await api.get<ApiResponse<Order[]>>(`/api/orders/my/recent?userId=${userId}&limit=${limit}`);
+    return response.data;
+  },
+
+  getMyOrderStats: async (userId: number) => {
+    const response = await api.get<ApiResponse<{ totalOrders: number; totalSpent: number; orderedCount: number; preparingCount: number; deliveredCount: number; cancelledCount: number; averageOrderValue: number }>>(`/api/orders/my/stats?userId=${userId}`);
+    return response.data;
+  },
+
+  // Admin Order APIs
   getOrderStats: async (date?: string) => {
     const url = date ? `/api/admin/orders/stats?date=${date}` : '/api/admin/orders/stats';
     const response = await api.get<ApiResponse<OrderStats>>(url);
